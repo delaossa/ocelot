@@ -433,6 +433,8 @@ def track(
         calc_tws=True,
         bounds=None,
         return_df=False,
+        mad=False,
+        correct_dispersion=False,
         overwrite_progress=True,
         slice=None
         ) -> Tuple[Union[List[Twiss], pd.DataFrame], ParticleArray]:
@@ -446,13 +448,19 @@ def track(
     :param print_progress: True, print tracking progress
     :param calc_tws: True, during the tracking twiss parameters are calculated from the beam distribution
     :param bounds: None, optional, [left_bound, right_bound] - bounds in units of std(p_array.tau())
-    :return: twiss_list, ParticleArray. In case calc_tws=False, twiss_list is list of empty Twiss classes.
+    :param return_df: True, return dataframe with twiss parameters
+    :param mad: True, use MAD instead of RMS to calculate twiss parameters.
+    :param correct_dispersion: True, correct dispersion in twiss parameters when using MAD method.
+    :return: twiss_list or dataframe with twiss parameters, ParticleArray. In case calc_tws=False, twiss_list is list of empty Twiss classes.
     """
     if navi is None:
         navi = Navigator(lattice)
     if navi.lat is not lattice:
         _logger.warning("MagneticLattice is not the same in lattice argument and in Navigator")
-    tw0 = get_envelope(p_array, bounds=bounds, slice=slice) if calc_tws else Twiss()
+    if mad:
+        tw0 = get_envelope_mad(p_array, correct_dispersion) if calc_tws else Twiss()
+    else:
+        tw0 = get_envelope(p_array, bounds=bounds, slice=slice) if calc_tws else Twiss()
     tws_track = [tw0]
     L = 0.
 
@@ -469,7 +477,10 @@ def track(
         if p_array.n == 0:
             _logger.debug(" Tracking stop: p_array.n = 0")
             return tws_track, p_array
-        tw = get_envelope(p_array, bounds=bounds, slice=slice) if calc_tws else Twiss()
+        if mad:
+            tw = get_envelope_mad(p_array, correct_dispersion) if calc_tws else Twiss()
+        else:
+            tw = get_envelope(p_array, bounds=bounds, slice=slice) if calc_tws else Twiss()
         L += dz
         tw.s += L
         tws_track.append(tw)

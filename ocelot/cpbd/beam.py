@@ -1435,6 +1435,114 @@ def get_envelope(p_array, tws_i=None, bounds=None, slice=None):
     return tws
 
 
+def w_median(a, weights=None):
+    """
+    Compute the weighted median of a 1D numpy array.
+
+    :param a : ndarray
+        Input array (one dimension).
+    :param weights : ndarray
+        Array with the weights of the same size of `a`.
+    :return median : float
+        The output value.
+    """
+    if weights is None:
+        weights = np.ones(len(a))
+    quantile = .5
+    ind_sorted = np.argsort(a)
+    sorted_data = a[ind_sorted]
+    sorted_weights = weights[ind_sorted]
+    Sn = np.cumsum(sorted_weights)
+    Pn = (Sn - 0.5 * sorted_weights) / Sn[-1]
+    return np.interp(quantile, Pn, sorted_data)
+
+
+def get_envelope_mad(p_array, correct_dispersion=False):
+    """
+    Calculate Twiss parameters from a ParticleArray.
+
+    This function processes particle data to compute Twiss parameters
+    using the MAD instead of the RMS for the distribution spreads.
+    The computed values are multiplied by 1.48 to obtain an RMS equivalent
+    value, in case of a Gaussian distribution.
+    Optionally, the Twiss parameters can be corrected for dispersion.
+
+    :param p_array: ParticleArray
+        The input particle array containing particle properties such as position and momentum.
+    :param correct_dispersion: bool, optional
+        Flag to correct for dispersion. Default is False.
+    :return Twiss
+        Computed Twiss parameters for the filtered particle array.
+    """
+
+    tws = Twiss()
+    tws.E = np.copy(p_array.E)
+    tws.q = np.sum(p_array.q_array)
+
+    q = p_array.q_array
+    tau = p_array.tau()
+    p = p_array.p()
+    x = p_array.x()
+    px = p_array.px()
+    y = p_array.y()
+    py = p_array.py()
+
+    tws.x   = w_median(x, q)
+    tws.y   = w_median(y, q)
+    tws.px  = w_median(px, q)
+    tws.py  = w_median(py, q)
+    tws.tau = w_median(tau, q)
+    tws.p   = w_median(p, q)
+    tws.pp  = (1.48 * w_median(np.abs(p - tws.p), q)) ** 2
+    tws.tautau = (1.48 * w_median(np.abs(tau - tws.tau), q)) ** 2
+
+    xp = w_median((x - tws.x) * (p - tws.p), q)
+    yp = w_median((y - tws.y) * (p - tws.p), q)
+    tws.Dx = xp / tws.pp
+    tws.Dy = yp / tws.pp
+
+    pxp = w_median((px - tws.px) * (p - tws.p), q)
+    pyp = w_median((py - tws.py) * (p - tws.p), q)
+    tws.Dxp = pxp / tws.pp
+    tws.Dyp = pyp / tws.pp
+
+    if correct_dispersion:
+        x = x - p * tws.Dx
+        px = px - p * tws.Dxp
+        y = y - p * tws.Dy
+        py = py -  p * tws.Dyp
+        tws.x   = w_median(x, q)
+        tws.y   = w_median(y, q)
+        tws.px  = w_median(px, q)
+        tws.py  = w_median(py, q)
+
+    tws.xx     = (1.48 * w_median(np.abs(x - tws.x), q)) ** 2
+    tws.pxpx   = (1.48 * w_median(np.abs(px - tws.px), q)) ** 2
+    tws.yy     = (1.48 * w_median(np.abs(y - tws.y), q)) ** 2
+    tws.pypy   = (1.48 * w_median(np.abs(py - tws.py), q)) ** 2
+
+    tws.ypy  = 1.48 * w_median((y - tws.y) * (py - tws.py), q)
+    tws.xpx  = 1.48 * w_median((x - tws.x) * (px - tws.px), q)
+    tws.xy   = 1.48 * w_median((x - tws.x) * (y - tws.y), q)
+    tws.pxpy = 1.48 * w_median((px - tws.px) * (py - tws.py), q)
+    tws.xpy  = 1.48 * w_median((x - tws.x) * (py - tws.py), q)
+    tws.ypx  = 1.48 * w_median((y - tws.y) * (px - tws.px), q)
+
+    tws.emit_x = np.sqrt(tws.xx * tws.pxpx - tws.xpx ** 2)
+    tws.emit_y = np.sqrt(tws.yy * tws.pypy - tws.ypy ** 2)
+    relgamma = p_array.E / m_e_GeV
+    relbeta = np.sqrt(1 - relgamma ** -2) if relgamma != 0 else 1.
+    tws.emit_xn = tws.emit_x * relgamma * relbeta
+    tws.emit_yn = tws.emit_y * relgamma * relbeta
+    tws.beta_x = tws.xx / tws.emit_x
+    tws.beta_y = tws.yy / tws.emit_y
+    tws.alpha_x = -tws.xpx / tws.emit_x
+    tws.alpha_y = -tws.ypy / tws.emit_y
+
+
+    return tws
+
+
 def get_current(p_array, num_bins=200, **kwargs):
     """
     Function calculates beam current from particleArray.
