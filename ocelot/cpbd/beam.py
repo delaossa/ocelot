@@ -1363,6 +1363,11 @@ def get_envelope(p_array, tws_i=None, bounds=None, slice=None):
         tws.ypx = np.mean(ne.evaluate('(y - tw_y) * (px - tw_px)'))
         tws.pp = np.mean(ne.evaluate('(p - tw_p)**2'))
 
+        xp = np.mean(ne.evaluate('(x - tw_x) * (p - tw_p)'))
+        yp = np.mean(ne.evaluate('(y - tw_y) * (p - tw_p)'))
+        pxp = np.mean(ne.evaluate('(px - tw_px) * (p - tw_p)'))
+        pyp = np.mean(ne.evaluate('(py - tw_py) * (p - tw_p)'))
+
     else:
         tws.xx = np.mean((x - tws.x) ** 2)
         tws.xpx = np.mean((x - tws.x) * (px - tws.px))
@@ -1377,6 +1382,11 @@ def get_envelope(p_array, tws_i=None, bounds=None, slice=None):
         tws.xpy = np.mean((x - tws.x) * (py - tws.py))
         tws.ypx = np.mean((y - tws.y) * (px - tws.px))
         tws.pp = np.mean((p - tws.p) ** 2)
+
+        xp = np.mean((x - tws.x) * (p - tws.p))
+        yp = np.mean((y - tws.y) * (p - tws.p))
+        pxp = np.mean((px - tws.px) * (p - tws.p))
+        pyp = np.mean((py - tws.py) * (p - tws.p))
 
     Sigma = np.array([[tws.xx, tws.xy, tws.xpx, tws.xpy],
                       [tws.xy, tws.yy, tws.ypx, tws.ypy],
@@ -1395,6 +1405,11 @@ def get_envelope(p_array, tws_i=None, bounds=None, slice=None):
     relbeta = np.sqrt(1 - relgamma ** -2) if relgamma != 0 else 1.
     tws.emit_xn = tws.emit_x * relgamma * relbeta
     tws.emit_yn = tws.emit_y * relgamma * relbeta
+
+    tws.Dx = xp / tws.pp
+    tws.Dy = yp / tws.pp
+    tws.Dxp = pxp / tws.pp
+    tws.Dyp = pyp / tws.pp
 
     xx = tws.xx
     xpx = tws.xpx
