@@ -332,7 +332,7 @@ def weights_default(val):
 
 
 def match_beam(lat, constr, vars, p_array, navi, verbose=True, max_iter=1000, method='simplex', weights=weights_default,
-               vary_bend_angle=False, min_i5=False, bounds=None, slice=None):
+               vary_bend_angle=False, min_i5=False, bounds=None, slice=None, get_twiss=None, twiss_disp_correction=False):
     """
     Function to match twiss parameters
 
@@ -360,11 +360,13 @@ def match_beam(lat, constr, vars, p_array, navi, verbose=True, max_iter=1000, me
     """
 
     # tw = deepcopy(tw0)
+    if get_twiss is None:   
+        get_twiss = get_envelope
 
     run_number = 1
     def errf(x):
         p_array0 = deepcopy(p_array)
-        tws = get_envelope(p_array0, bounds=bounds, slice=slice)
+        tws = get_twiss(p_array0, bounds=bounds, slice=slice, auto_disp=twiss_disp_correction)
         tw_loc = deepcopy(tws)
         tw0 = deepcopy(tws)
         nonlocal run_number
@@ -427,7 +429,9 @@ def match_beam(lat, constr, vars, p_array, navi, verbose=True, max_iter=1000, me
         # tw_loc.s = 0
         # print("start = ", get_envelope(p_array0))
         navi.go_to_start()
-        tws_list, p_array0 = track(lat, p_array0, navi, print_progress=False, bounds=bounds, slice=slice)
+        tws_list, p_array0 = track(lat, p_array0, navi, print_progress=False,
+                                   bounds=bounds, slice=slice,
+                                   get_twiss=get_twiss, twiss_disp_correction=twiss_disp_correction)
         s = np.array([tw.s for tw in tws_list])
         # print("stop = ", tws_list[-1])
         L = 0.
