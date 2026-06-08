@@ -9,6 +9,8 @@ from ocelot.cpbd.transformations.transformation import Transformation, TMTypes
 from ocelot.cpbd.transformations.second_order import SecondTM
 from ocelot.cpbd.transformations.transfer_map import TransferMap
 
+import logging
+_logger = logging.getLogger(__name__)
 
 class OpticElement:
     """
@@ -264,7 +266,7 @@ class OpticElement:
 
     def _warn_global_tm_fallback(self, tm: Type[Transformation], stacklevel: int) -> None:
         """Warn when a global lattice TM request falls back to the family default."""
-        warnings.warn(
+        _logger.warning(
             f"{self.__class__.__name__} does not declare support for {tm.__name__}; "
             f"global lattice request falls back to default {self.default_tm.__name__}.",
             stacklevel=stacklevel,
